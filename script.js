@@ -5,8 +5,15 @@ const ctx = canvas.getContext("2d");
 const grandmaImg = new Image();
 grandmaImg.src = "img/grandma.png";
 
-const grandma2Img = new Image();
-grandma2Img.src = "img/grandma2.png";
+const prizeImgs = [
+  "img/prize1.png",
+  "img/prize2.png",
+  "img/prize3.png"
+].map(src => {
+  const img = new Image();
+  img.src = src;
+  return img;
+});
 
 const bookImg = new Image();
 bookImg.src = "img/book.png";
@@ -25,15 +32,17 @@ let player = {
   vy: 0,
   gravity: 1,
   jumpPower: -18,
-  onGround: true,
-  skin: grandmaImg
+  onGround: true
 };
 
-/* === ИГРОВЫЕ ДАННЫЕ === */
+/* === ИГРА === */
 let score = 0;
 let books = [];
 let chest = null;
-let chestSpawned = false;
+
+/* === ПРИЗЫ === */
+let prizesOpened = [];
+let nextPrizeScore = 50;
 
 /* === УПРАВЛЕНИЕ === */
 function jump() {
@@ -46,10 +55,9 @@ function jump() {
 document.addEventListener("keydown", e => {
   if (e.code === "Space") jump();
 });
-
 document.addEventListener("touchstart", jump);
 
-/* === СПАВН УЧЕБНИКОВ === */
+/* === УЧЕБНИКИ === */
 function spawnBook() {
   books.push({
     x: canvas.width,
@@ -57,7 +65,6 @@ function spawnBook() {
     size: 40
   });
 }
-
 setInterval(spawnBook, 1500);
 
 /* === ОБНОВЛЕНИЕ === */
@@ -76,11 +83,6 @@ function update() {
   for (let i = books.length - 1; i >= 0; i--) {
     books[i].x -= 6;
 
-    if (books[i].x + books[i].size < 0) {
-      books.splice(i, 1);
-      continue;
-    }
-
     if (
       books[i].x < player.x + player.width &&
       books[i].x + books[i].size > player.x &&
@@ -90,13 +92,12 @@ function update() {
       books.splice(i, 1);
       score++;
 
-      if (score >= 50 && !chestSpawned) {
+      if (score >= nextPrizeScore && !chest) {
         chest = {
           x: canvas.width,
           y: groundY + 20,
           size: 60
         };
-        chestSpawned = true;
       }
     }
   }
@@ -111,7 +112,11 @@ function update() {
       chest.y < player.y + player.height &&
       chest.y + chest.size > player.y
     ) {
-      player.skin = grandma2Img;
+      const prizeIndex = prizesOpened.length;
+      if (prizeIndex < prizeImgs.length) {
+        prizesOpened.push(prizeImgs[prizeIndex]);
+        nextPrizeScore += 50;
+      }
       chest = null;
     }
   }
@@ -121,26 +126,40 @@ function update() {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.drawImage(player.skin, player.x, player.y, player.width, player.height);
+  /* Бабушка */
+  ctx.drawImage(
+    grandmaImg,
+    player.x,
+    player.y,
+    player.width,
+    player.height
+  );
 
+  /* Учебники */
   books.forEach(b => {
     ctx.drawImage(bookImg, b.x, b.y, b.size, b.size);
   });
 
+  /* Сундук */
   if (chest) {
     ctx.drawImage(chestImg, chest.x, chest.y, chest.size, chest.size);
   }
 
+  /* Очки */
   ctx.fillStyle = "#5e2b97";
   ctx.font = "20px Arial";
   ctx.fillText("Очки: " + score, 20, 30);
+
+  /* Призы (иконки сверху) */
+  prizesOpened.forEach((img, i) => {
+    ctx.drawImage(img, 20 + i * 45, 50, 40, 40);
+  });
 }
 
-/* === ИГРОВОЙ ЦИКЛ === */
+/* === ЦИКЛ === */
 function gameLoop() {
   update();
   draw();
   requestAnimationFrame(gameLoop);
 }
-
 gameLoop();
