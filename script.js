@@ -5,33 +5,37 @@ const ctx = canvas.getContext("2d");
 const grandmaImg = new Image();
 grandmaImg.src = "img/grandma.png";
 
-const prizeImgs = ["prize1.png", "prize2.png", "prize3.png"].map(name => {
-  const img = new Image();
-  img.src = "img/" + name;
-  return img;
-});
+const corridorImg = new Image();
+corridorImg.src = "img/corridor.png";
 
 const bookImg = new Image();
 bookImg.src = "img/book.png";
 
-const chestImg = new Image();
-chestImg.src = "img/chest.png";
-
 const phoneImg = new Image();
 phoneImg.src = "img/phone.png";
 
-const corridorImg = new Image();
-corridorImg.src = "img/corridor.png";
+const chestImg = new Image();
+chestImg.src = "img/chest.png";
+
+const prizeImgs = ["prize1.png", "prize2.png", "prize3.png"].map(n => {
+  const img = new Image();
+  img.src = "img/" + n;
+  return img;
+});
 
 /* === КОРИДОР (ФОН) === */
 let corridorX = 0;
 const corridorSpeed = 3;
 
+/* === 3 ПОЛОСЫ === */
+const lanes = [80, 180, 280];
+let currentLane = 1;
+
 /* === ИГРОК === */
 const groundY = 450;
 
 let player = {
-  x: 60,
+  x: lanes[currentLane],
   y: groundY,
   width: 80,
   height: 120,
@@ -51,7 +55,7 @@ let chest = null;
 let prizesOpened = [];
 let nextPrizeScore = 50;
 
-/* === УПРАВЛЕНИЕ === */
+/* === ПРЫЖОК === */
 function jump() {
   if (player.onGround) {
     player.vy = player.jumpPower;
@@ -59,38 +63,60 @@ function jump() {
   }
 }
 
+/* === СВАЙПЫ === */
+let startX = 0;
+let startY = 0;
+
+canvas.addEventListener("touchstart", e => {
+  startX = e.touches[0].clientX;
+  startY = e.touches[0].clientY;
+});
+
+canvas.addEventListener("touchend", e => {
+  const dx = e.changedTouches[0].clientX - startX;
+  const dy = e.changedTouches[0].clientY - startY;
+
+  if (Math.abs(dx) > Math.abs(dy)) {
+    if (dx > 50 && currentLane < 2) currentLane++;
+    if (dx < -50 && currentLane > 0) currentLane--;
+  } else {
+    if (dy < -50) jump();
+  }
+});
+
+/* === КЛАВИАТУРА === */
 document.addEventListener("keydown", e => {
+  if (e.code === "ArrowLeft" && currentLane > 0) currentLane--;
+  if (e.code === "ArrowRight" && currentLane < 2) currentLane++;
   if (e.code === "Space") jump();
 });
-document.addEventListener("touchstart", jump);
 
 /* === СПАВН УЧЕБНИКОВ === */
-function spawnBook() {
+setInterval(() => {
   books.push({
     x: canvas.width,
-    y: groundY + 40,
+    lane: Math.floor(Math.random() * 3),
     size: 40
   });
-}
-setInterval(spawnBook, 1500);
+}, 1500);
 
 /* === СПАВН ТЕЛЕФОНОВ === */
-function spawnPhone() {
+setInterval(() => {
   phones.push({
     x: canvas.width,
-    y: groundY + 40,
+    lane: Math.floor(Math.random() * 3),
     size: 40
   });
-}
-setInterval(spawnPhone, 4000);
+}, 4000);
 
 /* === ОБНОВЛЕНИЕ === */
 function update() {
   /* Движение коридора */
   corridorX -= corridorSpeed;
-  if (corridorX <= -canvas.width) {
-    corridorX = 0;
-  }
+  if (corridorX <= -canvas.width) corridorX = 0;
+
+  /* Позиция по полосе */
+  player.x = lanes[currentLane];
 
   /* Прыжок */
   player.y += player.vy;
@@ -102,58 +128,16 @@ function update() {
     player.onGround = true;
   }
 
-  /* Учебники (+1) */
-  for (let i = books.length - 1; i >= 0; i--) {
-    books[i].x -= 6;
-
-    if (
-      books[i].x < player.x + player.width &&
-      books[i].x + books[i].size > player.x &&
-      books[i].y < player.y + player.height &&
-      books[i].y + books[i].size > player.y
-    ) {
-      books.splice(i, 1);
-      score++;
-
-      if (score >= nextPrizeScore && !chest) {
-        chest = {
-          x: canvas.width,
-          y: groundY + 20,
-          size: 60
-        };
-      }
-    }
-  }
-
-  /* Телефоны (-25) */
-  for (let i = phones.length - 1; i >= 0; i--) {
-    phones[i].x -= 6;
-
-    if (
-      phones[i].x < player.x + player.width &&
-      phones[i].x + phones[i].size > player.x &&
-      phones[i].y < player.y + player.height &&
-      phones[i].y + phones[i].size > player.y
-    ) {
-      phones.splice(i, 1);
-      score -= 25;
-      if (score < 0) score = 0;
-    }
-  }
+  handleObjects(books, 1);
+  handleObjects(phones, -25);
 
   /* Сундук */
   if (chest) {
     chest.x -= 6;
-
-    if (
-      chest.x < player.x + player.width &&
-      chest.x + chest.size > player.x &&
-      chest.y < player.y + player.height &&
-      chest.y + chest.size > player.y
-    ) {
-      const prizeIndex = prizesOpened.length;
-      if (prizeIndex < prizeImgs.length) {
-        prizesOpened.push(prizeImgs[prizeIndex]);
+    if (collide(chest)) {
+      const index = prizesOpened.length;
+      if (index < prizeImgs.length) {
+        prizesOpened.push(prizeImgs[index]);
         nextPrizeScore += 50;
       }
       chest = null;
@@ -161,11 +145,43 @@ function update() {
   }
 }
 
+/* === ОБЪЕКТЫ === */
+function handleObjects(arr, points) {
+  for (let i = arr.length - 1; i >= 0; i--) {
+    arr[i].x -= 6;
+    arr[i].y = groundY + 40;
+
+    if (arr[i].lane === currentLane && collide(arr[i])) {
+      arr.splice(i, 1);
+      score += points;
+      if (score < 0) score = 0;
+
+      if (score >= nextPrizeScore && !chest) {
+        chest = {
+          x: canvas.width,
+          lane: currentLane,
+          size: 60
+        };
+      }
+    }
+  }
+}
+
+/* === СТОЛКНОВЕНИЕ === */
+function collide(obj) {
+  return (
+    obj.x < player.x + player.width &&
+    obj.x + obj.size > player.x &&
+    obj.y < player.y + player.height &&
+    obj.y + obj.size > player.y
+  );
+}
+
 /* === ОТРИСОВКА === */
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  /* Коридор (фон, 2 раза для зацикливания) */
+  /* Коридор */
   ctx.drawImage(corridorImg, corridorX, 0, canvas.width, canvas.height);
   ctx.drawImage(corridorImg, corridorX + canvas.width, 0, canvas.width, canvas.height);
 
@@ -174,21 +190,21 @@ function draw() {
 
   /* Учебники */
   books.forEach(b => {
-    ctx.drawImage(bookImg, b.x, b.y, b.size, b.size);
+    ctx.drawImage(bookImg, b.x, groundY + 40, b.size, b.size);
   });
 
   /* Телефоны */
   phones.forEach(p => {
-    ctx.drawImage(phoneImg, p.x, p.y, p.size, p.size);
+    ctx.drawImage(phoneImg, p.x, groundY + 40, p.size, p.size);
   });
 
   /* Сундук */
   if (chest) {
-    ctx.drawImage(chestImg, chest.x, chest.y, chest.size, chest.size);
+    ctx.drawImage(chestImg, chest.x, groundY + 20, chest.size, chest.size);
   }
 
   /* Очки */
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = "#fff";
   ctx.font = "20px Arial";
   ctx.fillText("Очки: " + score, 20, 30);
 
