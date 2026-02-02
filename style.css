@@ -1,0 +1,13 @@
+body {
+  margin: 0;
+  background: #f3e8ff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+canvas {
+  background: linear-gradient(#e6ccff, #ffffff);
+  border-radius: 20px;
+}
