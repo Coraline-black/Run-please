@@ -5,13 +5,9 @@ const ctx = canvas.getContext("2d");
 const grandmaImg = new Image();
 grandmaImg.src = "img/grandma.png";
 
-const prizeImgs = [
-  "img/prize1.png",
-  "img/prize2.png",
-  "img/prize3.png"
-].map(src => {
+const prizeImgs = ["prize1.png", "prize2.png", "prize3.png"].map(name => {
   const img = new Image();
-  img.src = src;
+  img.src = "img/" + name;
   return img;
 });
 
@@ -20,6 +16,9 @@ bookImg.src = "img/book.png";
 
 const chestImg = new Image();
 chestImg.src = "img/chest.png";
+
+const phoneImg = new Image();
+phoneImg.src = "img/phone.png";
 
 /* === ИГРОК === */
 const groundY = 450;
@@ -38,6 +37,7 @@ let player = {
 /* === ИГРА === */
 let score = 0;
 let books = [];
+let phones = [];
 let chest = null;
 
 /* === ПРИЗЫ === */
@@ -57,7 +57,7 @@ document.addEventListener("keydown", e => {
 });
 document.addEventListener("touchstart", jump);
 
-/* === УЧЕБНИКИ === */
+/* === СПАВН УЧЕБНИКОВ === */
 function spawnBook() {
   books.push({
     x: canvas.width,
@@ -66,6 +66,16 @@ function spawnBook() {
   });
 }
 setInterval(spawnBook, 1500);
+
+/* === СПАВН ТЕЛЕФОНОВ === */
+function spawnPhone() {
+  phones.push({
+    x: canvas.width,
+    y: groundY + 40,
+    size: 40
+  });
+}
+setInterval(spawnPhone, 4000);
 
 /* === ОБНОВЛЕНИЕ === */
 function update() {
@@ -79,7 +89,7 @@ function update() {
     player.onGround = true;
   }
 
-  /* Учебники */
+  /* Учебники (+1) */
   for (let i = books.length - 1; i >= 0; i--) {
     books[i].x -= 6;
 
@@ -99,6 +109,22 @@ function update() {
           size: 60
         };
       }
+    }
+  }
+
+  /* Телефоны (-25) */
+  for (let i = phones.length - 1; i >= 0; i--) {
+    phones[i].x -= 6;
+
+    if (
+      phones[i].x < player.x + player.width &&
+      phones[i].x + phones[i].size > player.x &&
+      phones[i].y < player.y + player.height &&
+      phones[i].y + phones[i].size > player.y
+    ) {
+      phones.splice(i, 1);
+      score -= 25;
+      if (score < 0) score = 0;
     }
   }
 
@@ -127,17 +153,16 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   /* Бабушка */
-  ctx.drawImage(
-    grandmaImg,
-    player.x,
-    player.y,
-    player.width,
-    player.height
-  );
+  ctx.drawImage(grandmaImg, player.x, player.y, player.width, player.height);
 
   /* Учебники */
   books.forEach(b => {
     ctx.drawImage(bookImg, b.x, b.y, b.size, b.size);
+  });
+
+  /* Телефоны */
+  phones.forEach(p => {
+    ctx.drawImage(phoneImg, p.x, p.y, p.size, p.size);
   });
 
   /* Сундук */
@@ -150,7 +175,7 @@ function draw() {
   ctx.font = "20px Arial";
   ctx.fillText("Очки: " + score, 20, 30);
 
-  /* Призы (иконки сверху) */
+  /* Призы */
   prizesOpened.forEach((img, i) => {
     ctx.drawImage(img, 20 + i * 45, 50, 40, 40);
   });
