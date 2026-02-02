@@ -20,6 +20,13 @@ chestImg.src = "img/chest.png";
 const phoneImg = new Image();
 phoneImg.src = "img/phone.png";
 
+const corridorImg = new Image();
+corridorImg.src = "img/corridor.png";
+
+/* === КОРИДОР (ФОН) === */
+let corridorX = 0;
+const corridorSpeed = 3;
+
 /* === ИГРОК === */
 const groundY = 450;
 
@@ -79,6 +86,12 @@ setInterval(spawnPhone, 4000);
 
 /* === ОБНОВЛЕНИЕ === */
 function update() {
+  /* Движение коридора */
+  corridorX -= corridorSpeed;
+  if (corridorX <= -canvas.width) {
+    corridorX = 0;
+  }
+
   /* Прыжок */
   player.y += player.vy;
   player.vy += player.gravity;
@@ -152,6 +165,10 @@ function update() {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  /* Коридор (фон, 2 раза для зацикливания) */
+  ctx.drawImage(corridorImg, corridorX, 0, canvas.width, canvas.height);
+  ctx.drawImage(corridorImg, corridorX + canvas.width, 0, canvas.width, canvas.height);
+
   /* Бабушка */
   ctx.drawImage(grandmaImg, player.x, player.y, player.width, player.height);
 
@@ -171,7 +188,7 @@ function draw() {
   }
 
   /* Очки */
-  ctx.fillStyle = "#5e2b97";
+  ctx.fillStyle = "#ffffff";
   ctx.font = "20px Arial";
   ctx.fillText("Очки: " + score, 20, 30);
 
